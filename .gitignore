@@ -1,5 +1,8 @@
+.vscode/
+PyWhatKit_DB.txt
+__pycache__/
 .env
-memory.txt
-chat_history.txt
 contacts.json
+memory.txt
 notes.txt
+chat_history.txt
