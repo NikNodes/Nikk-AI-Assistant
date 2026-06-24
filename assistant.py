@@ -1,3 +1,4 @@
+import winshell
 import speech_recognition as sr
 import pyttsx3
 import webbrowser
@@ -10,6 +11,7 @@ import pyautogui
 from groq import Groq
 from dotenv import load_dotenv
 import json
+import psutil
     
 load_dotenv()
 
@@ -25,6 +27,18 @@ with open("contacts.json", "r") as f:
 client = Groq(
     api_key=os.getenv("GROQ_API_KEY")
 )
+# empty recycle bin function
+def empty_bin():
+
+    winshell.recycle_bin().empty(confirm=False)
+
+    speak("Recycle bin emptied successfully")
+
+# battery status function
+def battery_status():
+    battery = psutil.sensors_battery()
+    percent = battery.percent
+    speak(f"Battery is at {percent} percent")
 
 # save note function
 def save_note(note):
@@ -75,6 +89,7 @@ def listen_for_wake_word():
     except Exception as e:
         print("Wake word error:", e)
         return ""
+    
 # set reminder function
 def set_reminder(minutes):
 
@@ -100,6 +115,18 @@ def send_whatsapp_message(phone_number, message):
     except Exception as e:
         print("WhatsApp Error:", e)
         speak("Sorry, I could not send the message.")
+def schedule_whatsapp_message(phone_number, message, hour, minute):
+    try:
+        pywhatkit.sendwhatmsg(
+            phone_number,
+            message,
+            hour,
+            minute
+        )
+        speak("Message scheduled successfully.")
+    except Exception as e:
+        print("Schedule Error:", e)
+        speak("Unable to schedule the message.")
 
 # text to speech function
 def speak(text):
@@ -202,7 +229,6 @@ while True:
                 speak("Goodbye")
                 exit()
 
-            # YAHAN BAKI SAARE COMMANDS
     # Open YouTube
             if "open youtube" in command:
                 speak("Opening YouTube")
@@ -356,6 +382,9 @@ while True:
                 current_day = datetime.datetime.now().strftime("%A")
                 speak(f"Today is {current_day}")
     
+    # empty recycle bin
+            elif "empty recycle bin" in command:
+                empty_bin()
     # shutdown computer
             elif "shutdown" in command or "shut down" in command:
                 speak("Shutting down the computer")
@@ -420,7 +449,22 @@ while True:
                     speak(f"{file_name} has been deleted from the desktop.")
                 else:
                     speak(f"{file_name} does not exist on the desktop.")
-            
+
+    # play / pause music
+            elif "play music" in command or "pause music" in command:
+                speak("Toggling music")
+                pyautogui.press("playpause")
+
+    # next song
+            elif "next song" in command:
+                speak("Playing next song")
+                pyautogui.press("nexttrack")
+
+    # previous song
+            elif "previous song" in command:
+                speak("Playing previous song")
+                pyautogui.press("prevtrack")
+
     #  volume up
             elif "volume up" in command:
                 speak("Increasing volume")
@@ -431,6 +475,20 @@ while True:
                 speak("Decreasing volume")
                 pyautogui.press("volumedown")
     
+    # cpu usage
+            elif "cpu usage" in command:
+                cpu = psutil.cpu_percent()
+                speak(f"CPU usage is {cpu} percent")
+    
+    # ram usage
+            elif "ram usage" in command:
+                ram = psutil.virtual_memory().percent
+                speak(f"RAM usage is {ram} percent")
+    
+    # battery status
+            elif "battery" in command:
+                battery_status()
+    
     # mute volume
             elif "mute" in command or "mute volume" in command:
                 speak("Muting volume")
@@ -440,6 +498,11 @@ while True:
             elif "unmute" in command or "unmute volume" in command:
                 speak("Unmuting volume")
                 pyautogui.press("volumemute")
+
+        # open any website
+            elif "open" in command:
+                site = command.replace("open", "").strip()
+                webbrowser.open(f"https://{site}.com")
 
     # maximize window
             elif "maximize window" in command:
@@ -477,18 +540,41 @@ while True:
                     speak("Please tell me the number of minutes.")
 
     # Send WhatsApp Message
-            elif "send whatsapp message" in command or "send a whatsapp message" in command:
+            elif "send whatsapp message" in command or "send a whatsapp message" in command or "send a message" in command:
                 speak("Whom should I send the message to?")
                 contact = take_command().lower()
                 phone_number = CONTACTS.get(contact)
 
-                if phone_number is None:
-                    speak("Contact not found.")
-                    continue
+                if phone_number:
+                    speak("What should I send?")
+                    message = take_command()
+                    send_whatsapp_message(phone_number, message)
 
-                speak("What should I send?")
-                message = take_command()
-                send_whatsapp_message(phone_number, message)
+                else:
+                    speak("Contact not found.")
+
+    # Schedule WhatsApp Message
+            elif "schedule message" in command:
+                speak("Whom should I send the message to?")
+                contact = take_command().lower()
+                phone_number = CONTACTS.get(contact)
+
+                if phone_number:
+                    speak("What should I send?")
+                    message = take_command()
+                    speak("Tell me the hour in 24 hour format")
+                    hour = int(take_command())
+                    speak("Tell me the minute")
+                    minute = int(take_command())
+                    schedule_whatsapp_message(
+                    phone_number,
+                    message,
+                    hour,
+                    minute
+                    )
+
+                else:
+                    speak("Contact not found.")
 
             elif command != "":
                 ai_chat(command)                           
