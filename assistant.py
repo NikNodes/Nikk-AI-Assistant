@@ -27,6 +27,17 @@ with open("contacts.json", "r") as f:
 client = Groq(
     api_key=os.getenv("GROQ_API_KEY")
 )
+# set alarm function
+def set_alarm(alarm_time):
+    def alarm():
+        while True:
+            current_time = datetime.now().strftime("%H:%M")
+            if current_time == alarm_time:
+                speak("Nikunj, wake up. Alarm time reached.")
+                break
+            time.sleep(30)
+    threading.Thread(target=alarm, daemon=True).start()
+
 # empty recycle bin function
 def empty_bin():
 
@@ -385,6 +396,7 @@ while True:
     # empty recycle bin
             elif "empty recycle bin" in command:
                 empty_bin()
+
     # shutdown computer
             elif "shutdown" in command or "shut down" in command:
                 speak("Shutting down the computer")
@@ -499,7 +511,7 @@ while True:
                 speak("Unmuting volume")
                 pyautogui.press("volumemute")
 
-        # open any website
+    # open any website
             elif "open" in command:
                 site = command.replace("open", "").strip()
                 webbrowser.open(f"https://{site}.com")
@@ -518,6 +530,13 @@ while True:
                 info = command.replace("remember", "").strip()
                 save_memory(info)
                 speak(f"I will remember that {info}")
+    
+    # set alarm
+            elif "set alarm" in command:
+                speak("Tell me the time in 24 hour format")
+                alarm_time = take_command()
+                set_alarm(alarm_time)
+                speak(f"Alarm set for {alarm_time}")
 
     # Take Note
             elif "write a note" in command or "take a note" in command:
