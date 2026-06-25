@@ -3,6 +3,7 @@ from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QPainter, QColor
 import random
 import math
+from PyQt6.QtGui import QPen
 
 
 class Node:
@@ -21,7 +22,7 @@ class ParticleNetwork(QWidget):
 
         self.nodes = [
             Node(1600,900)
-            for _ in range(80)
+            for _ in range(150)
         ]
 
         self.timer = QTimer()
@@ -95,20 +96,27 @@ class ParticleNetwork(QWidget):
                     (y2-y1)**2
                 )
 
-                if distance < 120:
+                if distance < 180:
 
                     alpha = int(
-                        100 - distance
+                        80 * (1 - distance / 180)
                     )
 
-                    painter.setPen(
+                    if alpha < 0:
+                        alpha = 0
+
+                    pen = QPen(
                         QColor(
-                            100,
-                            220,
+                            120,
+                            240,
                             255,
                             alpha
                         )
                     )
+
+                    pen.setWidth(1)
+
+                    painter.setPen(pen)
 
                     painter.drawLine(
                         int(x1),

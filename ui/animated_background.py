@@ -4,7 +4,6 @@ from PyQt6.QtGui import QPainter, QColor, QLinearGradient
 import random
 import math
 
-from numpy import gradient
 
 
 class Particle:
@@ -56,24 +55,64 @@ class AnimatedBackground(QWidget):
 
         gradient.setColorAt(
             0,
-            QColor(0,15,40)
+            QColor(0,0,0)
+        )
+        gradient.setColorAt(
+            0.35,
+            QColor(5,10,30)
         )
 
         gradient.setColorAt(
-            0.5,
-            QColor(0,40,80)
+            0.7,
+            QColor(15,0,30)
         )
 
         gradient.setColorAt(
             1,
-            QColor(0,10,25)
+            QColor(0,0,0)
         )
-
         painter.fillRect(
             self.rect(),
             gradient
         )
         
+        # Pink Glow
+        painter.setBrush(
+            QColor(255,0,180,4)
+        )
+        painter.setPen(Qt.PenStyle.NoPen)
+
+        painter.drawEllipse(
+            300,
+            200,
+            250,
+            250
+        )
+
+        # Cyan Glow
+        painter.setBrush(
+            QColor(0,255,255,6)
+        )
+
+        painter.drawEllipse(
+            950,
+            150,
+            300,
+            300
+        )
+
+        # Green Glow
+        painter.setBrush(
+            QColor(100,255,120,12)
+        )
+
+        painter.drawEllipse(
+            1200,
+            500,
+            300,
+            300
+        )
+
         for i in range(8):
 
             painter.setBrush(
@@ -81,7 +120,7 @@ class AnimatedBackground(QWidget):
                     100,
                     200,
                     255,
-                    6
+                    2
                 )
             )
 
@@ -94,16 +133,16 @@ class AnimatedBackground(QWidget):
                 800
             )
 
-            painter.setPen(
-            QColor(
-                100,
-                220,
-                255,
-                30
-            )
-        )
+        wave_colors = [
+            QColor(0,255,255,20),
+            QColor(255,0,180,20),
+            QColor(0,255,120,18)
+        ]
 
-        for layer in range(3):
+        for layer,color in enumerate(wave_colors):
+            painter.setPen(
+                color
+            )
 
             points = []
 
@@ -143,13 +182,16 @@ class AnimatedBackground(QWidget):
 
         for p in self.particles:
 
+            colors=[
+                QColor(0,255,255,p.alpha),
+                QColor(255,0,255,p.alpha),
+                QColor(255,255,0,p.alpha),
+                QColor(120,255,120,p.alpha),
+                QColor(255,120,120,p.alpha)
+            ]
+            painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(
-                QColor(
-                    120,
-                    220,
-                    255,
-                    p.alpha
-                )
+                random.choice(colors)
             )
             
             painter.drawEllipse(
