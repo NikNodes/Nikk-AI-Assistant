@@ -12,6 +12,12 @@ from groq import Groq
 from dotenv import load_dotenv
 import json
 import psutil
+import cv2
+import base64
+import pyperclip
+import easyocr
+import face_recognition
+import shutil
     
 load_dotenv()
 
@@ -23,10 +29,86 @@ CHAT_HISTORY_FILE = "chat_history.txt"
 with open("contacts.json", "r") as f:
     CONTACTS = json.load(f)
 
+reader = easyocr.Reader(
+    ['en'],
+    gpu=False
+)
 
 client = Groq(
     api_key=os.getenv("GROQ_API_KEY")
 )
+# 
+def read_document():
+
+    speak("Looking at the document.")
+
+    image = capture_image()
+
+    if not image:
+        return
+
+    result = reader.readtext(image)
+
+    if not result:
+        speak("I couldn't read any text.")
+        return
+
+    text = ""
+
+    for item in result:
+
+        text += item[1] + " "
+
+    print(text)
+
+    speak(text)
+
+# 
+def get_clipboard():
+
+    try:
+        text = pyperclip.paste()
+
+        if not text.strip():
+            speak("Clipboard is empty.")
+            return None
+
+        return text
+
+    except Exception:
+        speak("Unable to access clipboard.")
+        return None
+    
+#
+def explain_clipboard():
+
+    text = get_clipboard()
+
+    if not text:
+        return
+
+    speak("Analyzing copied text.")
+
+    response = client.chat.completions.create(
+
+        model="llama-3.3-70b-versatile",
+
+        messages=[
+            {
+                "role":"system",
+                "content":"You are NIKK AI Assistant. Explain the given text in a simple way."
+            },
+            {
+                "role":"user",
+                "content":text
+            }
+        ]
+    )
+
+    answer = response.choices[0].message.content
+
+    speak(answer) 
+
 # set alarm function
 def set_alarm(alarm_time):
     def alarm():
@@ -37,6 +119,203 @@ def set_alarm(alarm_time):
                 break
             time.sleep(30)
     threading.Thread(target=alarm, daemon=True).start()
+
+# capture image 
+def capture_image():
+
+    cap = cv2.VideoCapture(0)
+
+    if not cap.isOpened():
+        speak("Camera could not be opened.")
+        return None
+
+    # Camera warm-up
+    for _ in range(30):
+        ret, frame = cap.read()
+
+    if not ret:
+        cap.release()
+        speak("Unable to capture image.")
+        return None
+
+    image_path = "camera.jpg"
+
+    cv2.imwrite(image_path, frame)
+
+    cap.release()
+
+    return image_path
+
+# 
+def register_face():
+
+    speak("Look at the camera.")
+
+    image = capture_image()
+
+    if image is None:
+        return
+
+    img = face_recognition.load_image_file(image)
+
+    encodings = face_recognition.face_encodings(img)
+
+    if len(encodings) == 0:
+        speak("No face detected. Please try again.")
+        return
+
+    os.makedirs("faces", exist_ok=True)
+
+    locations = face_recognition.face_locations(img)
+    print("REGISTER FACE LOCATIONS:", len(locations))
+
+    encodings = face_recognition.face_encodings(img, locations)
+    print("REGISTER ENCODINGS:", len(encodings))
+
+
+    shutil.copy(image, "faces/Nikunj.jpg")
+
+    speak("Face registered successfully.")
+
+# 
+def recognize_face():
+
+    image = capture_image()
+
+    if image is None:
+        return
+
+    if not os.path.exists("faces/Nikunj.jpg"):
+        speak("No registered face found.")
+        return
+
+    print("Loading registered image...")
+
+    known_image = face_recognition.load_image_file("faces/Nikunj.jpg")
+    
+    locations = face_recognition.face_locations(known_image)
+    print("KNOWN LOCATIONS:", len(locations))
+
+    known_encoding = face_recognition.face_encodings(
+        known_image,
+        locations
+    )
+
+    print("KNOWN ENCODINGS:", len(known_encoding))
+
+    print("Image Loaded")
+
+    known_encoding = face_recognition.face_encodings(known_image)
+
+    print("Known Faces:", len(known_encoding))
+
+    if len(known_encoding) == 0:
+        speak("Registered face is invalid.")
+        return
+
+    known_encoding = known_encoding[0]
+
+    unknown_image = face_recognition.load_image_file(image)
+
+    unknown_encoding = face_recognition.face_encodings(unknown_image)
+    
+    print("UNKNOWN FACES:", len(unknown_encoding))
+
+    if len(unknown_encoding) == 0:
+        speak("I cannot see your face.")
+        return
+
+    unknown_encoding = unknown_encoding[0]
+
+    distance = face_recognition.face_distance(
+        [known_encoding],
+        unknown_encoding
+    )[0]
+
+    print("Distance:", distance)
+
+    if distance < 0.48:
+        speak("Welcome back Nikunj.")
+
+    else:
+        speak("I don't recognize you.")
+
+# 
+def capture_screen():
+
+    image_path = "screen.jpg"
+
+    screenshot = pyautogui.screenshot()
+
+    screenshot.save(image_path)
+
+    return image_path
+
+# 
+def encode_image(image_path):
+
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode("utf-8")
+
+# 
+def analyze_image(image_path):
+
+    try:
+
+        image_base64 = encode_image(image_path)
+
+        completion = client.chat.completions.create(
+
+            model="meta-llama/llama-4-scout-17b-16e-instruct",
+
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "Describe everything you see in this image in detail."
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{image_base64}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            temperature=0.5,
+            max_tokens=500
+        )
+        answer = completion.choices[0].message.content
+        speak(answer)
+
+    except Exception as e:
+
+        print("Vision Error :", e)
+
+        speak("Sorry, I couldn't analyze the image.")
+
+# 
+def vision_ai():
+
+    image = capture_image()
+
+    if image:
+
+        speak("Analyzing image.")
+
+        analyze_image(image) 
+
+# 
+def screen_ai():
+
+    speak("Analyzing your screen.")
+
+    image = capture_screen()
+
+    analyze_image(image)
 
 # empty recycle bin function
 def empty_bin():
@@ -558,6 +837,47 @@ while True:
                 except ValueError:
                     speak("Please tell me the number of minutes.")
 
+    # vision of AI      
+            elif "what do you see" in command:
+                vision_ai()
+            elif "look around" in command:
+                vision_ai()
+            elif "analyze image" in command:
+                vision_ai()
+            elif "describe this" in command:
+                vision_ai()
+    
+    # 
+            elif "analyze my screen" in command:
+                screen_ai()
+            elif "read my screen" in command:
+                screen_ai()
+            elif "what is on my screen" in command:
+                screen_ai()
+            elif "describe my screen" in command:
+                screen_ai()
+    # 
+            elif "explain copied text" in command:
+                explain_clipboard()
+            elif "explain clipboard" in command:
+                explain_clipboard()
+    
+    # 
+            elif "read this document" in command:
+                read_document()
+            elif "read this paper" in command:
+                read_document()
+            elif "read this page" in command:
+                read_document()
+
+    # 
+            elif "register my face" in command:
+                register_face()
+            elif "who am i" in command:
+                recognize_face()
+            elif "recognize me" in command:
+                recognize_face()
+
     # Send WhatsApp Message
             elif "send whatsapp message" in command or "send a whatsapp message" in command or "send a message" in command:
                 speak("Whom should I send the message to?")
@@ -568,7 +888,6 @@ while True:
                     speak("What should I send?")
                     message = take_command()
                     send_whatsapp_message(phone_number, message)
-
                 else:
                     speak("Contact not found.")
 
