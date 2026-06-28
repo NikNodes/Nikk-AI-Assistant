@@ -18,6 +18,7 @@ import pyperclip
 import easyocr
 import face_recognition
 import shutil
+from object_detector import detect_objects
     
 load_dotenv()
 
@@ -37,6 +38,81 @@ reader = easyocr.Reader(
 client = Groq(
     api_key=os.getenv("GROQ_API_KEY")
 )
+
+# 
+def live_vision():
+
+    speak("Live vision started.")
+
+    cap = cv2.VideoCapture(0)
+
+    if not cap.isOpened():
+        speak("Unable to open camera.")
+        return
+
+    previous_answer = ""
+
+    while True:
+
+        ret, frame = cap.read()
+
+        if not ret:
+            continue
+
+        cv2.imwrite("live.jpg", frame)
+
+        try:
+
+            image_base64 = encode_image("live.jpg")
+
+            objects = detect_objects(frame)
+
+            print("Objects:", objects)
+
+            completion = client.chat.completions.create(
+
+                model="meta-llama/llama-4-scout-17b-16e-instruct",
+
+                messages=[
+                    {
+                        "role":"user",
+                        "content":[
+                            {
+                                "type":"text",
+                                "text":"Describe only important changes in this scene."
+                            },
+                            {
+                                "type":"image_url",
+                                "image_url":{
+                                    "url":f"data:image/jpeg;base64,{image_base64}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens=120
+            )
+
+            answer = completion.choices[0].message.content.strip()
+
+            if answer != previous_answer:
+
+                print(answer)
+
+                speak(answer)
+
+                previous_answer = answer
+
+        except Exception as e:
+
+            print(e)
+
+    time.sleep(3)
+
+    cap.release()
+
+    speak("Live vision stopped.")
+
 # 
 def read_document():
 
@@ -877,6 +953,13 @@ while True:
                 recognize_face()
             elif "recognize me" in command:
                 recognize_face()
+    
+    # 
+            elif "start live vision" in command:
+                live_vision()
+            elif "live vision" in command:
+                live_vision()
+
 
     # Send WhatsApp Message
             elif "send whatsapp message" in command or "send a whatsapp message" in command or "send a message" in command:
